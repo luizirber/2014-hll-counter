@@ -1,0 +1,63 @@
+#!/bin/bash -login
+
+set -o nounset
+set -o errexit
+set -o pipefail
+
+FILEPATH="/mnt/scratch/tg/irberlui/biodata/galGal/outputs/moleculo/LR6000017-DNA_A01-LRAAA-1_LongRead_500_1499nt.fasta"
+WORKDIR=/mnt/scratch/tg/irberlui/2014-hll-counter/workdir
+
+mkdir -p $WORKDIR/output/
+mkdir -p $WORKDIR/results/
+
+write_submit_script() {
+  local SCRIPT=$1
+  local FILEPATH=$2
+  local FILENAME=$(basename $FILEPATH)
+  local MINUTES=$3
+  local MEM=$4
+
+  cat <<EOT1> $WORKDIR/${SCRIPT}-${FILENAME}
+#!/bin/bash -login
+#PBS -l walltime=00:$MINUTES:00,nodes=1:ppn=1
+#PBS -l mem=$MEM
+#PBS -j oe
+#PBS -o $WORKDIR/output/log.${SCRIPT}.${FILENAME}
+#PBS -N hll.${FILENAME}
+#PBS -A ged-intel11
+#PBS -W umask=027
+#PBS -t 0-13
+
+set -o nounset
+set -o errexit
+set -o pipefail
+
+module use /opt/software/ged-software/modulefiles/
+module load anaconda
+
+set -x
+
+cd \$PBS_O_WORKDIR
+
+KSIZE=\$((31 + \$PBS_ARRAYID * 16))
+#python sandbox/hll_count2.py $1 \$KSIZE
+#python sandbox/hll_count3.py $1 \$KSIZE
+
+python $SCRIPT $FILEPATH \$KSIZE
+
+cat \${PBS_NODEFILE}       # Output Contents of the PBS NODEFILE
+
+env | grep PBS            # Print out values of the current jobs PBS environment variables
+
+qstat -f \${PBS_JOBID}     # Print out final statistics about resource uses before job exits
+EOT1
+
+}
+
+#SCRIPT="unique_kmers_hll.py"
+#write_submit_script $SCRIPT $FILEPATH 10 100mb
+#qsub $WORKDIR/${SCRIPT}-$(basename ${FILEPATH})
+
+SCRIPT="unique_kmers_exact.py"
+write_submit_script $SCRIPT $FILEPATH 20 20gb
+qsub $WORKDIR/${SCRIPT}-$(basename ${FILEPATH})

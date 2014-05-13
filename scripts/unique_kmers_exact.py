@@ -4,7 +4,7 @@
 # Copyright (C) Michigan State University, 2009-2014. It is licensed under
 # the three-clause BSD license; see doc/LICENSE.txt. Contact: ctb@msu.edu
 #
-## use a HyperLogLog counter to estimate number of unique kmers
+## Use a Python set to count unique kmers. This is very memory inneficient.
 
 import string
 
@@ -16,15 +16,19 @@ from screed.fasta import fasta_iter
 filename = sys.argv[1]
 K = int(sys.argv[2])  # size of kmer
 
-ERROR_RATE = .01
 TT = string.maketrans('ACGT', 'TGCA')
 
-hllcpp = khmer.new_hll_counter(ERROR_RATE)
+counter = set()
 
 for n, record in enumerate(fasta_iter(open(filename))):
     sequence = record['sequence']
-    hllcpp.consume_string(sequence, K)
+    seq_len = len(sequence)
+    for n in range(0, seq_len + 1 - K):
+        kmer = sequence[n:n + K]
+        rc = kmer[::-1].translate(TT)
 
-cpp_estimate = hllcpp.estimate_cardinality()
+        if rc in counter:
+            kmer = rc
+        counter.add(kmer)
 
-print 'HLL cpp unique:', cpp_estimate
+print 'Unique:', len(counter)
