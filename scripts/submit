@@ -8,7 +8,6 @@ FILEPATH="/mnt/scratch/tg/irberlui/biodata/galGal/outputs/moleculo/LR6000017-DNA
 WORKDIR=/mnt/scratch/tg/irberlui/2014-hll-counter/workdir
 
 mkdir -p $WORKDIR/output/
-mkdir -p $WORKDIR/results/
 
 write_submit_script() {
   local SCRIPT=$1
@@ -16,17 +15,19 @@ write_submit_script() {
   local FILENAME=$(basename $FILEPATH)
   local MINUTES=$3
   local MEM=$4
+  local REPLICATE=$5
 
+  mkdir -p $WORKDIR/output/${REPLICATE}
   cat <<EOT1> $WORKDIR/${SCRIPT}-${FILENAME}
 #!/bin/bash -login
 #PBS -l walltime=00:$MINUTES:00,nodes=1:ppn=1
 #PBS -l mem=$MEM
 #PBS -j oe
-#PBS -o $WORKDIR/output/log.${SCRIPT}.${FILENAME}
+#PBS -o $WORKDIR/output/${REPLICATE}/log.${SCRIPT}.${FILENAME}
 #PBS -N hll.${FILENAME}
 #PBS -A ged-intel11
 #PBS -W umask=027
-#PBS -t 0-13
+#PBS -t 00-13
 
 set -o nounset
 set -o errexit
@@ -40,9 +41,6 @@ set -x
 cd \$PBS_O_WORKDIR
 
 KSIZE=\$((31 + \$PBS_ARRAYID * 16))
-#python sandbox/hll_count2.py $1 \$KSIZE
-#python sandbox/hll_count3.py $1 \$KSIZE
-
 python $SCRIPT $FILEPATH \$KSIZE
 
 cat \${PBS_NODEFILE}       # Output Contents of the PBS NODEFILE
@@ -54,10 +52,13 @@ EOT1
 
 }
 
-#SCRIPT="unique_kmers_hll.py"
-#write_submit_script $SCRIPT $FILEPATH 10 100mb
-#qsub $WORKDIR/${SCRIPT}-$(basename ${FILEPATH})
+SCRIPT="unique_kmers_hll.py"
+for replicate in $(seq -w 01 30)
+do
+  write_submit_script $SCRIPT $FILEPATH 10 100mb r${replicate}
+  qsub $WORKDIR/${SCRIPT}-$(basename ${FILEPATH})
+done
 
-SCRIPT="unique_kmers_exact.py"
-write_submit_script $SCRIPT $FILEPATH 20 20gb
-qsub $WORKDIR/${SCRIPT}-$(basename ${FILEPATH})
+#SCRIPT="unique_kmers_exact.py"
+#write_submit_script $SCRIPT $FILEPATH 20 20gb r${replicate}
+#qsub $WORKDIR/${SCRIPT}-$(basename ${FILEPATH})
