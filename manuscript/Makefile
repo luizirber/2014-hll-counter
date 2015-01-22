@@ -1,6 +1,8 @@
-all: document.tex
-	latex document
-	dvipdf document
+DOCUMENT := 2014-hll
+
+all: ${DOCUMENT}.tex
+	latex ${DOCUMENT}
+	dvipdf ${DOCUMENT}
 
 clean:
-	-rm document.{bbl,blg,dvi,log,out,aux}
+	-rm ${DOCUMENT}.{bbl,blg,dvi,log,out,aux}
