@@ -1,2 +1,5 @@
+module unload Python
 module load anaconda
 module load gperftools
+module swap GNU GNU/4.8.3
+source activate hllpaper

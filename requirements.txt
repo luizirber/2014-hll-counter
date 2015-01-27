@@ -1,19 +1,11 @@
+-e git+https://github.com/ged-lab/khmer.git
+
 mock==1.0.1
-pandas==0.13.1
+pandas==0.15.0
 yep==0.2
 hyperloglog==0.0.8
 
-Jinja2==2.7.2
-MarkupSafe==0.23
-Pygments==1.6
-Sphinx==1.2.2
-docutils==0.11
-gnureadline==6.3.3
-ipython==2.0.0
-nose==1.3.3
-numpydoc==0.4
-pyzmq==14.3.0
-tornado==3.2.1
+ipython[all]==2.3.0
 
 Sumatra==0.6.0
 GitPython==0.3.2.RC1
