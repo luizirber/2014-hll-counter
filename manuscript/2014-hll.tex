@@ -7,7 +7,7 @@
 \firstpage{1}
 
 \title[k-mer cardinality estimation]{Probabilistic cardinality estimation for fun and \sout{profit} SCIENCE!}
-\author[Irber \textit{et~al}]{Luiz C. Irber Jr.\,$^{1,\footnote{to whom correspondence should be addressed}}$, C. Titus Brown\,$^{1,2,3}$ }
+\author[Irber \textit{et~al}]{Luiz C. Irber Jr.\,$^{1,\footnote{to whom correspondence should be addressed}}$, C. Titus Brown\,$^{2,1,3}$ }
 \address{$^{1}$Department of Computer Science and Engineering, Michigan State University, East Lansing 48823, \\
 $^{2}$Department of Microbiology and Molecular Genetics, Michigan State University, East Lansing 48823, \\
 $^{3}$School of Veterinary Medicine, UC Davis, Davis 95616, United States of America}
@@ -18,13 +18,18 @@ $^{3}$School of Veterinary Medicine, UC Davis, Davis 95616, United States of Ame
 
 \maketitle
 
-\begin{abstract}
+\begin{abstract} We present an open implementation of the sublinear memory
+HyperLogLog cardinality estimation algorithm for counting fixed-length
+subsequences of DNA (``k-mers'').
 
 \section{Summary:}
 
 \section{Availability and implementation:}
-khmer is freely available from \href{https://github.com/ged-lab/khmer}{https://github.com/ged-lab/khmer} and under a BSD License.
-The features presented here are included since version 1.4.
+
+The HyperLogLog implementation is in C++ with a Python interface, and is distributed
+as part of the khmer software package.
+khmer is freely available from \href{https://github.com/ged-lab/khmer}{https://github.com/ged-lab/khmer} under a BSD License.
+The features presented here are included in version 1.4 and later.
 
 \section{Contact:} \href{irberlui@msu.edu}{irberlui@msu.edu}
 \end{abstract}
@@ -47,77 +52,35 @@ The features presented here are included since version 1.4.
 
 \section{Introduction}
 
-Next-Generation Sequencing (NGS) technologies generate data at increasing rates,
-and for almost fifteen years at an even faster rate than Moore's Law.
-Algorithms need to be adapted or even developed to deal with these data rates,
-and depending on which analysis is intended probabilistic data structures
-can be used to manage the complexity.
+Next-Generation DNA Sequencing (NGS) technologies generate data at
+increasing rates, and for almost 10 years have been increasing data
+generation capacity at rates faster than Moore's Law.  In the last
+five years, several probabilistic data structures and algorithms have
+been developed and applied to this increasing volume of data.
+% bloom filter, melsted streaming, diginorm, etc.
 
 Probabilistic data structures are useful when the cost for a exact
-answer is prohibitive,
-but an approximate answer is acceptable.
+answer is prohibitive, but an approximate answer is acceptable.  The
+approximation is usually attained through reproducible randomness
+(hashing, for example) and average case analysis.  The main benefit of
+probabilistic data structures is a tradeoff between space and
+accuracy, since often a very small amount of memory can be used for
+crude results but better estimatives are reported as memory increases.
+These data structures are usually specialized, performing one kind of
+operation well but missing other functionality available on
+generalized data structures.
 
-The approximation is usually attained through reproducible randomness (hashing, for example)
-and average case analysis.
-The main benefit is space efficiency,
-since a very small amount of memory can be used for crude results but
-better estimatives are reported as memory increases.
-They are usually specialized,
-performing one kind of operation well but missing other functionality available
-on generalized data structures.
+Here we present an open implementation of the HyperLogLog cardinality
+counting algorithm, specialized for k-mers, fixed-length subsequences
+of DNA strings.  The HyperLogLog counter is a cardinality estimation
+data structure with constant (and low) memory footprint, based on
+hashing and probabilistic estimation.  (@Brief description.) See
+Figure 2 for an example.
 
-An example of a probabilistic data structure is a Bloom Filter,
-which is useful for set membership operations.
-They basically work by creating a large bit array of $m$ bits and using
-$k$ hash functions to update each position of the array.
-To insert a new value to a Bloom filter the hash functions are calculated
-and the hashed values are used to set positions on the bit array to 1.
-
-After an element is inserted it can be queried for membership on the dataset,
-which means calculating the hash for a value and checking
-if all the 1-bit are set in the bit array.
-
-To avoid saturation and returning false positives more memory can be allocated (by increasing $m$),
-but ultimately the amount of memory needed to avoid false positives depend
-on the cardinality of the set (how many unique elements are present).
-Usually this is not known beforehand,
-and since there is no way to remove elements or extend a already started
-Bloom filter the computation needs to be restarted if the false positive rate gets too high.
-
-One way to avoid this is by estimating the cardinality of the set,
-and then initializing a Bloom filter with the proper size.
-The HyperLogLog counter is a cardinality estimation data structure with constant (and low) memory footprint,
-also based on hashing and probabilistic estimation.
-It works by a similar process to Bloom filters,
-but with a different way to update a bit array.
-See Figure 2 for an example.
-
-khmer is a library and suite of command line tools for working with DNA sequence.
-It implements $k$-mer counting, filtering and graph traversal using
-probabilistic data structures such as Bloom Filter and Count-Min Sketch.
-I have a sequential HyperLogLog counter implementation in a khmer branch,
-and it was used as baseline.
-This also allowed leveraging the existing infrastructure (read parsers,
-package installation,
-API signatures and some k-mer hashing methods).
-
-khmer is implemented both in Python and C++.
-Data structures and performance-critical sections are implemented in C++ and this low level API is exposed to Python,
-with scripts providing the functionality available to users.
-The Python interpreter is implemented using a global interpreter lock (GIL),
-which makes multithreading virtually impossible with pure Python.
-Usually multiprocessing is used instead,
-but there is a communication overhead (since memory is not shared between processes).
-C/C++ extensions are not affected,
-and so OpenMP is viable.
-
-There is \citep{georganas2014parallel}, an article accepted for Supercomputing 2014 describing the implementation of a parallel HyperLogLog counter.
-They use C++ and MPI,
-and also MurmurHash as hash function,
-the same used for my sequential implementation.
-They use cardinality estimation to set Bloom filters,
-which are used to build de Bruijn assembly graphs.
-
+This functionality is useful for a variety of purposes, including
+estimating the minimum required memory allocation for fixed-size data
+structures such as Bloom filters and Count-Min Sketches (ref Pell 2012,
+SC paper, khmer-counting paper).
 
 %\citep{heule2013hyperloglog}
 
@@ -127,24 +90,17 @@ which are used to build de Bruijn assembly graphs.
 
 %\citep{khmer-counting}
 
-\section{Approach}
-
-\begin{methods}
 \section{Methods}
 
-\subsection{Input parsing}
+We implemented HyperLogLog for k-mers on top of the khmer library.
+khmer is a library and suite of command line tools for working with
+DNA sequence.  It implements $k$-mer counting, filtering and graph
+traversal using probabilistic data structures that include Bloom
+Filters and Count-Min Sketch.  Building on top of khmer leveraged
+leveraged the existing infrastructure (read parsers, package
+installation, API signatures and some k-mer hashing methods).
 
-The most popular data format for sequences is FASTA,
-a human readable text-based representation.
-It is very easy to parse,
-but also very inneficient since it doesn't allow any direct form of indexing or random access.
-Usually files are processed into more efficient formats before being used,
-although it might not be a viable option:
-sequence datasets tend to be very large,
-and many systems don't have enough disk space to hold both original data and the processed file.
-I used the read parser available in khmer,
-and it can process both FASTA and FASTQ (an extended FASTA file with quality scores),
-either compressed or uncompressed.
+(Briefly describe HLL implementation, plus problem decomposition)
 
 \subsection{The "add element" operation}
 
@@ -202,9 +158,15 @@ over all counters.
 Since the sequential HyperLogLog implementation is CPU-bound (limited by hashing),
 optimized input reading is not a priority.
 
-\end{methods}
-
 \section{Discussion}
+
+Items for discussion:
+
+\begin{itemize}
+\item It's fast; estimate per mn reads, linear evaluation, including startup.
+\item Further speedups are unlikely: we're IO bound currently.
+\item Estimate practical memory usage (Python included).
+\end{itemize}
 
 I implemented parallelization in shared memory using OpenMP.
 Shared memory parallelization is useful because the most time consuming

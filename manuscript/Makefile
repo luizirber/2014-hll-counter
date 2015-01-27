@@ -1,6 +1,8 @@
 DOCUMENT := 2014-hll
 
-all: ${DOCUMENT}.tex
+all: ${DOCUMENT}.pdf
+
+${DOCUMENT}.pdf: ${DOCUMENT}.tex
 	pdflatex ${DOCUMENT}
 	bibtex ${DOCUMENT}
 	pdflatex ${DOCUMENT}
