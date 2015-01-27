@@ -1,14 +1,16 @@
 \documentclass{bioinfo}
-\copyrightyear{2005}
-\pubyear{2005}
+\copyrightyear{2015}
+\pubyear{2015}
+\usepackage[normalem]{ulem}
 
 \begin{document}
 \firstpage{1}
 
-\title[short Title]{This is a title}
-\author[Sample \textit{et~al}]{Corresponding Author\,$^{1,*}$, Co-Author\,$^{2}$ and Co-Author\,$^2$\footnote{to whom correspondence should be addressed}}
-\address{$^{1}$Department of XXXXXXX, Address XXXX etc.\\
-$^{2}$Department of XXXXXXXX, Address XXXX etc.}
+\title[k-mer cardinality estimation]{Probabilistic cardinality estimation for fun and \sout{profit} SCIENCE!}
+\author[Irber \textit{et~al}]{Luiz C. Irber Jr.\,$^{1,\footnote{to whom correspondence should be addressed}}$, C. Titus Brown\,$^{1,2,3}$ }
+\address{$^{1}$Department of Computer Science and Engineering, Michigan State University, East Lansing 48823, \\
+$^{2}$Department of Microbiology and Molecular Genetics, Michigan State University, East Lansing 48823, \\
+$^{3}$School of Veterinary Medicine, UC Davis, Davis 95616, United States of America}
 
 \history{Received on XXXXX; revised on XXXXX; accepted on XXXXX}
 
@@ -18,171 +20,307 @@ $^{2}$Department of XXXXXXXX, Address XXXX etc.}
 
 \begin{abstract}
 
-\section{Motivation:}
-Text Text Text  Text Text Text Text Text Text Text Text
-Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text.
+\section{Summary:}
 
-\section{Results:}
-Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text
+\section{Availability and implementation:}
+khmer is freely available from \href{https://github.com/ged-lab/khmer}{https://github.com/ged-lab/khmer} and under a BSD License.
+The features presented here are included since version 1.4.
 
-\section{Availability:}
-Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text
-
-\section{Contact:} \href{name@bio.com}{name@bio.com}
+\section{Contact:} \href{irberlui@msu.edu}{irberlui@msu.edu}
 \end{abstract}
+
+%    Exact k-mer cardinality counting is too expensive/impractical, memory-wise.
+%    Use cases for cardinality estimation on bioinformatics:
+%        Bloom filter memory allocation
+%            cite the SC14 paper
+%            also QP's calculations
+%    Probabilistic counting allows a tradeoff between accuracy and memory consumption
+%    HLL is a fixed memory and pleasantly parallel data structure
+%    Figures:
+%        plot running time for different # of threads, with two bounds:
+%            Just reading it from disk (I/O lower bound)
+%            Running time for (diginorm? any operation using BF?), which should be the upper bound for performance. Using HLL is a tradeoff between running time and memory efficiency, but we don't want it increase runtime too much.
+%        a comparison to other solutions (using sparsehash or python dicts) is not very informative (since HLL memory consumption will be constant). Maybe just a small table?
+%    Implementation details:
+%        why MurmurHash3?
+%        OpenMP tasks
 
 \section{Introduction}
 
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure~\ref{fig:01} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citep{Bag01} wants to know about …… text follows.
+Next-Generation Sequencing (NGS) technologies generate data at increasing rates,
+and for almost fifteen years at an even faster rate than Moore's Law.
+Algorithms need to be adapted or even developed to deal with these data rates,
+and depending on which analysis is intended probabilistic data structures
+can be used to manage the complexity.
 
-\begin{equation}
-\sum x+ y =Z\label{eq:01}
-\end{equation}
+Probabilistic data structures are useful when the cost for a exact
+answer is prohibitive,
+but an approximate answer is acceptable.
+
+The approximation is usually attained through reproducible randomness (hashing, for example)
+and average case analysis.
+The main benefit is space efficiency,
+since a very small amount of memory can be used for crude results but
+better estimatives are reported as memory increases.
+They are usually specialized,
+performing one kind of operation well but missing other functionality available
+on generalized data structures.
+
+An example of a probabilistic data structure is a Bloom Filter,
+which is useful for set membership operations.
+They basically work by creating a large bit array of $m$ bits and using
+$k$ hash functions to update each position of the array.
+To insert a new value to a Bloom filter the hash functions are calculated
+and the hashed values are used to set positions on the bit array to 1.
+
+After an element is inserted it can be queried for membership on the dataset,
+which means calculating the hash for a value and checking
+if all the 1-bit are set in the bit array.
+
+To avoid saturation and returning false positives more memory can be allocated (by increasing $m$),
+but ultimately the amount of memory needed to avoid false positives depend
+on the cardinality of the set (how many unique elements are present).
+Usually this is not known beforehand,
+and since there is no way to remove elements or extend a already started
+Bloom filter the computation needs to be restarted if the false positive rate gets too high.
+
+One way to avoid this is by estimating the cardinality of the set,
+and then initializing a Bloom filter with the proper size.
+The HyperLogLog counter is a cardinality estimation data structure with constant (and low) memory footprint,
+also based on hashing and probabilistic estimation.
+It works by a similar process to Bloom filters,
+but with a different way to update a bit array.
+See Figure 2 for an example.
+
+khmer is a library and suite of command line tools for working with DNA sequence.
+It implements $k$-mer counting, filtering and graph traversal using
+probabilistic data structures such as Bloom Filter and Count-Min Sketch.
+I have a sequential HyperLogLog counter implementation in a khmer branch,
+and it was used as baseline.
+This also allowed leveraging the existing infrastructure (read parsers,
+package installation,
+API signatures and some k-mer hashing methods).
+
+khmer is implemented both in Python and C++.
+Data structures and performance-critical sections are implemented in C++ and this low level API is exposed to Python,
+with scripts providing the functionality available to users.
+The Python interpreter is implemented using a global interpreter lock (GIL),
+which makes multithreading virtually impossible with pure Python.
+Usually multiprocessing is used instead,
+but there is a communication overhead (since memory is not shared between processes).
+C/C++ extensions are not affected,
+and so OpenMP is viable.
+
+There is \citep{georganas2014parallel}, an article accepted for Supercomputing 2014 describing the implementation of a parallel HyperLogLog counter.
+They use C++ and MPI,
+and also MurmurHash as hash function,
+the same used for my sequential implementation.
+They use cardinality estimation to set Bloom filters,
+which are used to build de Bruijn assembly graphs.
 
 
+%\citep{heule2013hyperloglog}
 
+%\citep{flajolet2008hyperloglog}
 
+%\citep{khmer2014}
 
+%\citep{khmer-counting}
 
 \section{Approach}
-
-Equation~(\ref{eq:01}) Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text ……
-
 
 \begin{methods}
 \section{Methods}
 
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
+\subsection{Input parsing}
 
-\begin{itemize}
-\item for bulleted list, use itemize
-\item for bulleted list, use itemize
-\item for bulleted list, use itemize
-\end{itemize}
+The most popular data format for sequences is FASTA,
+a human readable text-based representation.
+It is very easy to parse,
+but also very inneficient since it doesn't allow any direct form of indexing or random access.
+Usually files are processed into more efficient formats before being used,
+although it might not be a viable option:
+sequence datasets tend to be very large,
+and many systems don't have enough disk space to hold both original data and the processed file.
+I used the read parser available in khmer,
+and it can process both FASTA and FASTQ (an extended FASTA file with quality scores),
+either compressed or uncompressed.
 
+\subsection{The "add element" operation}
 
+This operation involves the calculation of a hash value for the input,
+some bitwise operations to determine special properties (longest run on 0-value bits, for example)
+and a memory update to one position of the bit array.
+This is the CPU-intensive part,
+depending heavily on the hash function used.
+I chose MurmurHash3 because it is one of the fastest non-cryptographic hash function available
+and it has a reasonably uniform hash space distribution.
+This is executed $len(read) - (k-1)$ times for each read on the dataset,
+were $k$ is the desired $k$-mer size.
 
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text.
+\subsection{HyperLogLog merge operation}
 
+The merge operation is a elementwise max-reduction between two bit arrays.
+Because the bit arrays are relatively small (about 128 KB) the merge operation is an excellent way to avoid resource sharing and synchronization during the update operations,
+at the cost of instantiating additional temporary HyperLogLog structures.
+Since their sizes are small,
+this is a viable tradeoff.
+This operation is not necessary when adding elements in parallel and can be executed
+optimally after all elements were consumed (i.e. once at the end).
 
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
+\subsection{Problem decomposition}
 
+One way to divide the problem is by instantiating multiple HLL counters
+and distribute reads between them while there are reads available.
+After all the reads are consumed the counters are merged and the final
+counter can be used for cardinality estimation.
 
+I chose a shared memory implementation for this problem decomposition,
+since only a small amount of memory is needed and this is also the architecture
+most khmer users have available for use.
+OpenMP was chosen because it doesn't demand code changes
+(meaning the program will still work if OpenMP is not available,
+although slower).
+This is also important because it is not available currently on the default OSX compiler (clang),
+but as soon clang implements OpenMP support it will work for khmer users.
+This would be harder (but not impossible) to implement with MPI.
 
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
+The only shared resource during updates is the bit array.
+In order to avoid any synchronization instead of having one HyperLogLog shared between threads
+(and so a critical section or atomic update of the bit array position)
+I opted for creating one HyperLogLog data structure for each thread,
+this way no resources need to be shared.
 
+OpenMP tasks maps well to this decomposition:
+one thread (using a single pragma) get reads from the read parser
+and for each read a task is spawned,
+using firstprivate(read) to guarantee the read won't be overwritten.
+The task thread does the "add element" operation in the counter assigned to its thread ID.
+After all reads are parsed and the tasks finish one thread does the merge operation
+over all counters.
 
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-
-
-
-\begin{table}[!t]
-\processtable{This is table caption\label{Tab:01}}
-{\begin{tabular}{llll}\toprule
-head1 & head2 & head3 & head4\\\midrule
-row1 & row1 & row1 & row1\\
-row2 & row2 & row2 & row2\\
-row3 & row3 & row3 & row3\\
-row4 & row4 & row4 & row4\\\botrule
-\end{tabular}}{This is a footnote}
-\end{table}
+Since the sequential HyperLogLog implementation is CPU-bound (limited by hashing),
+optimized input reading is not a priority.
 
 \end{methods}
 
-\begin{figure}[!tpb]%figure1
-%\centerline{\includegraphics{fig01.eps}}
-\caption{Caption, caption.}\label{fig:01}
-\end{figure}
-
-\begin{figure}[!tpb]%figure2
-%\centerline{\includegraphics{fig02.eps}}
-\caption{Caption, caption.}\label{fig:02}
-\end{figure}
-
 \section{Discussion}
 
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text.
+I implemented parallelization in shared memory using OpenMP.
+Shared memory parallelization is useful because the most time consuming
+step is calculating the hash and this doesn't share state among other calculations.
+The critical operation is updating the bit arrays,
+which is fast and just modify a small amount of memory.
 
+The target architecture is multicore CPUs.
+The primary users of khmer are biologists and one of the project goals is easy installation and a low cognitive barrier for new users.
+Compiling in a consistent way for Xeon Phi or GPUs is non-trivial in most systems,
+and even OpenMP is not supported in some popular platforms (OSX + clang, for example).
+Nonetheless,
+adapting the code to use either Xeon Phi or GPUs could lead to even better results,
+since the hashing process is mostly CPU-bound.
 
+I used two different datasets during development,
+one being a subset 3 orders of magnitude smaller than the other:
 
+Gallus\_3.longest25.partial.fasta
 
-Table~\ref{Tab:01} shows that Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that
-the above method Text Text. Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that
-the above method Text Text. Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that
-the above method Text Text.
+  - 112,455 basepairs
+  - 47 seqs
+  - 2392.7 average length
+  - 111 KB
 
+Gallus\_3.longest25.fasta
 
+  - 149,943,923 bp
+  - 44,336 seqs
+  - 3,382.0 average length
+  - 144 MB
 
+Despite being smaller,
+the average length of each sequence is about the same for both datasets.
+I used the partial dataset just to make quick tests
+(specially when segfaults were envolved).
 
+The true cardinality of the complete dataset for $k=32$ is 129,196,601.
+This is the timing data for the complete dataset (all tests with k=32):
 
+\begin{verbatim}
+  $ export OMP_NUM_THREADS=1
+  $ time ./hll ../../Gallus_3.longest25.fasta
+  129,388,424
+  real    0m52.660s user    0m52.505s sys     0m0.062s
 
+  $ export OMP_NUM_THREADS=2
+  $ time ./hll ../../Gallus_3.longest25.fasta
+  129,388,424
+  real    0m27.193s user    0m54.142s sys     0m0.082s
 
+  $ export OMP_NUM_THREADS=4
+  $ time ./hll ../../Gallus_3.longest25.fasta
+  129,388,424
+  real    0m14.042s user    0m55.790s sys     0m0.093s
 
+  $ export OMP_NUM_THREADS=8
+  $ time ./hll ../../Gallus_3.longest25.fasta
+  129,388,424
+  real    0m7.370s user    0m58.318s sys     0m0.084s
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-%     please remove the " % " symbol from \centerline{\includegraphics{fig01.eps}}
-%     as it may ignore the figures.
-%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  $ export OMP_NUM_THREADS=16
+  $ time ./hll ../../Gallus_3.longest25.fasta
+  129,388,424
+  real    0m3.773s user    0m59.251s sys     0m0.094s
+\end{verbatim}
 
+\begin{verbatim}
 
+$ time ./just_io ../Gallus_3.longest25.fasta.bak
+real    0m4.149s
+user    0m4.076s
+sys     0m0.065s
 
+$ time OMP_NUM_THREADS=16 ./hll ../Gallus_3.longest25.fasta.bak 32
+129388424
+real    0m4.722s
+user    1m15.223s
+sys     0m0.109s
 
+\end{verbatim}
 
+Speedup times are close to linear,
+which is best seem on Figure 3.
+We can also notice the estimation is within error bounds,
+being smaller than 1%.
+
+For stress testing I used a larger dataset.
+Although it's 4 times smaller than the one I proposed to use,
+it is a typical dataset found by users.
+
+Chicken\_10Kb20Kb\_40X\_Filtered\_Subreads.fastq
+
+  - 43,076,933,303 bp
+  - 9,006,923 seqs
+  - 4,782.6 average length
+  - 81 GB
+
+Using the Python API, with 16 threads and k = 32,
+the running time is close to what is expected when extrapolating the
+results on smaller datasets,
+(about 36 minutes).
+
+%``` bash
+%  $ time python unique_kmers.py Chicken_10Kb20Kb_40X_Filtered_Subreads.fastq 32
+%  unique k-mers: 41,954,729,591
+%  real    35m2.600s user    326m27.120s sys     2m53.487s
+%```
 
 \section{Conclusion}
 
-(Table~\ref{Tab:01}) Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.
-
-
-
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-
-
-
-
-
-\begin{enumerate}
-\item this is item, use enumerate
-\item this is item, use enumerate
-\item this is item, use enumerate
-\end{enumerate}
-
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text  Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text.
-
-
-
-
-
-
-Text Text Text Text Text Text  Text Text Text Text Text Text Text Text Text  Text Text Text Text Text Text. Figure \ref{fig:02} shows that the above method  Text Text Text Text
-
-
 \section*{Acknowledgement}
-Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to know about  text text text text
 
-\paragraph{Funding\textcolon} Text Text Text Text Text Text  Text Text.
+\paragraph{Funding\textcolon} This work was supported by FUNDING-AGENCY [ GRANT-NUMBER ].
 
-%\bibliographystyle{natbib}
+\bibliographystyle{natbib}
 %\bibliographystyle{achemnat}
 %\bibliographystyle{plainnat}
 %\bibliographystyle{abbrv}
@@ -190,38 +328,7 @@ Text Text Text Text Text Text  Text Text.  \citealp{Boffelli03} might want to kn
 %
 %\bibliographystyle{plain}
 %
-%\bibliography{Document}
+\bibliography{2014-hll}
 
 
-\begin{thebibliography}{}
-\bibitem[Bofelli {\it et~al}., 2000]{Boffelli03} Bofelli,F., Name2, Name3 (2003) Article title, {\it Journal Name}, {\bf 199}, 133-154.
-
-\bibitem[Bag {\it et~al}., 2001]{Bag01} Bag,M., Name2, Name3 (2001) Article title, {\it Journal Name}, {\bf 99}, 33-54.
-
-\bibitem[Yoo \textit{et~al}., 2003]{Yoo03}
-Yoo,M.S. \textit{et~al}. (2003) Oxidative stress regulated genes
-in nigral dopaminergic neurnol cell: correlation with the known
-pathology in Parkinson's disease. \textit{Brain Res. Mol. Brain
-Res.}, \textbf{110}(Suppl. 1), 76--84.
-
-\bibitem[Lehmann, 1986]{Leh86}
-Lehmann,E.L. (1986) Chapter title. \textit{Book Title}. Vol.~1, 2nd edn. Springer-Verlag, New York.
-
-\bibitem[Crenshaw and Jones, 2003]{Cre03}
-Crenshaw, B.,III, and Jones, W.B.,Jr (2003) The future of clinical
-cancer management: one tumor, one chip. \textit{Bioinformatics},
-doi:10.1093/bioinformatics/btn000.
-
-\bibitem[Auhtor \textit{et~al}. (2000)]{Aut00}
-Auhtor,A.B. \textit{et~al}. (2000) Chapter title. In Smith, A.C.
-(ed.), \textit{Book Title}, 2nd edn. Publisher, Location, Vol. 1, pp.
-???--???.
-
-\bibitem[Bardet, 1920]{Bar20}
-Bardet, G. (1920) Sur un syndrome d'obesite infantile avec
-polydactylie et retinite pigmentaire (contribution a l'etude des
-formes cliniques de l'obesite hypophysaire). PhD Thesis, name of
-institution, Paris, France.
-
-\end{thebibliography}
 \end{document}
