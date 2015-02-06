@@ -22,13 +22,14 @@ def parse_replicate(filename):
                 elif len(walltime) == 2:
                     minutes = float(walltime[0])
                 value = hours * 3600 + minutes * 60 + float(seconds)
+                key = "Elapsed (wall clock) time (seconds)"
 
             measures[key] = value
     return measures
 
 
 def parse_exp(name, replicates, threads=None, dir="benchmarks"):
-    all_data = {}
+    all_data = []
     if threads is None:
         threads = [1]
 
@@ -37,7 +38,10 @@ def parse_exp(name, replicates, threads=None, dir="benchmarks"):
             filename = "{dir}/{name}_r{rep:02d}".format(dir=dir, name=name, rep=rep)
             if not os.path.exists(filename):
                 filename += "t{thr:02d}".format(thr=thread)
-            all_data[rep] = parse_replicate(filename)
+            rep_data = parse_replicate(filename)
+            rep_data['replicate'] = rep
+            rep_data['threads'] = thread
+            all_data.append(rep_data)
 
 
-    return pd.DataFrame(all_data).T.convert_objects(convert_numeric=True)
+    return pd.DataFrame(all_data).convert_objects(convert_numeric=True)
