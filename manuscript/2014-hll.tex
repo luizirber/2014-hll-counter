@@ -79,16 +79,14 @@ Figure 2 for an example.
 
 This functionality is useful for a variety of purposes, including
 estimating the minimum required memory allocation for fixed-size data
-structures such as Bloom filters and Count-Min Sketches (ref Pell 2012,
-SC paper, khmer-counting paper).
+structures such as Bloom filters and Count-Min Sketches (ref \citep{pell2012scaling},
+\citep{georganas2014parallel}, \citep{khmer-counting}).
 
 %\citep{heule2013hyperloglog}
 
 %\citep{flajolet2008hyperloglog}
 
 %\citep{khmer2014}
-
-%\citep{khmer-counting}
 
 \section{Methods}
 
@@ -160,13 +158,39 @@ optimized input reading is not a priority.
 
 \section{Discussion}
 
-Items for discussion:
+%Items for discussion:
+%
+%\begin{itemize}
+%\item It's fast; estimate per mn reads, linear evaluation, including startup.
 
-\begin{itemize}
-\item It's fast; estimate per mn reads, linear evaluation, including startup.
-\item Further speedups are unlikely: we're IO bound currently.
-\item Estimate practical memory usage (Python included).
-\end{itemize}
+%\item Further speedups are unlikely: we're IO bound currently.
+
+Running with only one CPU is suboptimal because the problem can be easily parallelized.
+
+For comparison we ran a simple benchmark using the same input infrastructure,
+but without performing any kind of processing to check what is the I/O lower bound.
+This baseline can be used to verify how many threads are needed before I/O becomes the bottleneck.
+
+Figure \ref{fig:02} shows $t=32$ threads are needed to saturate I/O.
+
+%\item Estimate practical memory usage (Python included).
+
+
+Memory consumption increases proportionally to the number of threads used,
+since one HyperLogLog is instantiated for each thread.
+At the end of input processing this memory is released and only one is needed,
+being the result of merging every HyperLogLog holding partial values from each thread.
+This temporary increase in memory consumption is not a practical problem because each HyperLogLog is small:
+Figure \ref{fig:03} shows the maximum resident memory for pure I/O is about 25 MB,
+
+Another memory overhead associated with increasing the number of threads is the memory OpenMP allocations for its task queue,
+which depends on the compilers' implementation.    % TODO: verify if this can be changed!
+Usually this is not so drastic because the thread doing input parsing can switch to sequence processing if the queue is full,
+and in I/O saturation conditions the queue will be close to empty anyway.
+
+
+%\end{itemize}
+
 
 I implemented parallelization in shared memory using OpenMP.
 Shared memory parallelization is useful because the most time consuming
@@ -185,13 +209,6 @@ since the hashing process is mostly CPU-bound.
 I used two different datasets during development,
 one being a subset 3 orders of magnitude smaller than the other:
 
-Gallus\_3.longest25.partial.fasta
-
-  - 112,455 basepairs
-  - 47 seqs
-  - 2392.7 average length
-  - 111 KB
-
 Gallus\_3.longest25.fasta
 
   - 149,943,923 bp
@@ -206,48 +223,6 @@ I used the partial dataset just to make quick tests
 
 The true cardinality of the complete dataset for $k=32$ is 129,196,601.
 This is the timing data for the complete dataset (all tests with k=32):
-
-\begin{verbatim}
-  $ export OMP_NUM_THREADS=1
-  $ time ./hll ../../Gallus_3.longest25.fasta
-  129,388,424
-  real    0m52.660s user    0m52.505s sys     0m0.062s
-
-  $ export OMP_NUM_THREADS=2
-  $ time ./hll ../../Gallus_3.longest25.fasta
-  129,388,424
-  real    0m27.193s user    0m54.142s sys     0m0.082s
-
-  $ export OMP_NUM_THREADS=4
-  $ time ./hll ../../Gallus_3.longest25.fasta
-  129,388,424
-  real    0m14.042s user    0m55.790s sys     0m0.093s
-
-  $ export OMP_NUM_THREADS=8
-  $ time ./hll ../../Gallus_3.longest25.fasta
-  129,388,424
-  real    0m7.370s user    0m58.318s sys     0m0.084s
-
-  $ export OMP_NUM_THREADS=16
-  $ time ./hll ../../Gallus_3.longest25.fasta
-  129,388,424
-  real    0m3.773s user    0m59.251s sys     0m0.094s
-\end{verbatim}
-
-\begin{verbatim}
-
-$ time ./just_io ../Gallus_3.longest25.fasta.bak
-real    0m4.149s
-user    0m4.076s
-sys     0m0.065s
-
-$ time OMP_NUM_THREADS=16 ./hll ../Gallus_3.longest25.fasta.bak 32
-129388424
-real    0m4.722s
-user    1m15.223s
-sys     0m0.109s
-
-\end{verbatim}
 
 Speedup times are close to linear,
 which is best seem on Figure 3.
@@ -291,6 +266,17 @@ results on smaller datasets,
 %\bibliographystyle{plain}
 %
 \bibliography{2014-hll}
+
+
+\begin{figure*}[!tpb]%figure2
+\centerline{\includegraphics[width=\textwidth]{figures/io_bound.png}}
+\caption{Walltime and lower bound(I/O)}\label{fig:walltime}
+\end{figure*}
+
+\begin{figure*}[!tpb]%figure3
+\centerline{\includegraphics[width=\textwidth]{figures/mem_consumption.png}}
+\caption{Memory consumption}\label{fig:mem}
+\end{figure*}
 
 
 \end{document}
