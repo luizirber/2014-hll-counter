@@ -95,7 +95,7 @@ khmer is a library and suite of command line tools for working with
 DNA sequence.  It implements $k$-mer counting, filtering and graph
 traversal using probabilistic data structures that include Bloom
 Filters and Count-Min Sketch.  Building on top of khmer leveraged
-leveraged the existing infrastructure (read parsers, package
+the existing infrastructure (read parsers, package
 installation, API signatures and some k-mer hashing methods).
 
 (Briefly describe HLL implementation, plus problem decomposition)
@@ -165,7 +165,9 @@ optimized input reading is not a priority.
 
 %\item Further speedups are unlikely: we're IO bound currently.
 
-Running with only one CPU is suboptimal because the problem can be easily parallelized.
+Running with only one CPU is suboptimal because the problem can be easily parallelized,
+
+and hashing is CPU-bound.
 
 For comparison we ran a simple benchmark using the same input infrastructure,
 but without performing any kind of processing to check what is the I/O lower bound.
@@ -178,15 +180,15 @@ Figure \ref{fig:02} shows $t=32$ threads are needed to saturate I/O.
 
 Memory consumption increases proportionally to the number of threads used,
 since one HyperLogLog is instantiated for each thread.
-At the end of input processing this memory is released and only one is needed,
-being the result of merging every HyperLogLog holding partial values from each thread.
-This temporary increase in memory consumption is not a practical problem because each HyperLogLog is small:
+The increase in memory consumption is not a practical problem because each HyperLogLog is small:
 Figure \ref{fig:03} shows the maximum resident memory for pure I/O is about 25 MB,
+(...)
+At the end of input processing this memory can be released by merging all HyperLogLog holding the partial counts into one containing the final result.
 
 Another memory overhead associated with increasing the number of threads is the memory OpenMP allocations for its task queue,
-which depends on the compilers' implementation.    % TODO: verify if this can be changed!
-Usually this is not so drastic because the thread doing input parsing can switch to sequence processing if the queue is full,
-and in I/O saturation conditions the queue will be close to empty anyway.
+which depends on the compilers' implementation.    % TODO: verify if the memory allocated by OpenMP can be changed!
+This is not so drastic because the thread doing input parsing can switch to sequence processing if the queue is full,
+and in I/O saturation conditions the queue will be almost empty all the time.
 
 
 %\end{itemize}
