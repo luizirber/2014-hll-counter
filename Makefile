@@ -1,6 +1,6 @@
-INPUT=Gallus_3.longest25.fasta
+INPUT=inputs/Gallus_3.longest25.fasta
 THREADS=01 02 04 08 16 32
-REPLICATES=$(shell seq -w 1 10)
+REPLICATES=$(shell seq -w 1 30)
 TIMING_CMD=/usr/bin/time -v
 
 all:

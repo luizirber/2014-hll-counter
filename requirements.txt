@@ -1,4 +1,4 @@
--e git+https://github.com/ged-lab/khmer.git
+git+https://github.com/ged-lab/khmer.git
 
 mock==1.0.1
 pandas==0.15.0
