@@ -80,6 +80,7 @@ int main(int argc, char** argv) {
       read = parser->get_next_read();
 
       for(auto & c : read.sequence) {
+          if (c == 'N') c = 'A';
           kmer.push_back(c);
           if (kmer.size() < K) {
               continue;

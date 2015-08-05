@@ -6,29 +6,32 @@
 #
 ## Use a Python set to count unique kmers. This is very memory inneficient.
 
+from __future__ import print_function
+
 import string
 
 import khmer
 import sys
-from screed.fasta import fasta_iter
+import screed
 
 
 filename = sys.argv[1]
 K = int(sys.argv[2])  # size of kmer
 
-TT = string.maketrans('ACGT', 'TGCA')
+TRANSLATE = {'A': 'T', 'C': 'G', 'T': 'A', 'G': 'C'}
 
 counter = set()
 
-for n, record in enumerate(fasta_iter(open(filename))):
-    sequence = record['sequence']
-    seq_len = len(sequence)
-    for n in range(0, seq_len + 1 - K):
-        kmer = sequence[n:n + K]
-        rc = kmer[::-1].translate(TT)
+with screed.open(filename) as f:
+    for n, record in enumerate(f):
+        sequence = record['sequence']
+        seq_len = len(sequence)
+        for n in range(0, seq_len + 1 - K):
+            kmer = sequence[n:n + K].replace('N', 'A')
+            rc = "".join(TRANSLATE[c] for c in kmer[::-1])
 
-        if rc in counter:
-            kmer = rc
-        counter.add(kmer)
+            if rc in counter:
+                kmer = rc
+            counter.add(kmer)
 
-print 'Unique:', len(counter)
+print('Unique:', len(counter))

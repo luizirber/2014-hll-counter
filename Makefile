@@ -1,14 +1,27 @@
 INPUT=inputs/SRR1304364_1.fastq
 INPUT_URL=ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR130/004/SRR1304364/SRR1304364_1.fastq.gz
-THREADS=01 02 04 08 16 32
+
+INPUT_MEDIUM=inputs/SRR1216679_1.fastq
+INPUT_MEDIUM_URL=ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR121/009/SRR1216679/SRR1216679_1.fastq.gz
+
+INPUT_SMALL=inputs/SRR797943.fastq
+INPUT_SMALL_URL=ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR797/SRR797943/SRR797943.fastq.gz
+
+
 THREADS=32 16 08 04 02 01
-REPLICATES=$(shell seq -w 1 3)
+REPLICATES=$(shell seq -w 01 10)
 TIMING_CMD=/usr/bin/time -v
 
-all:
+all: benchmarks/unique-kmers benchmarks/just-io \
+	 benchmarks/streaming_unique-kmers benchmarks/streaming_just-io \
+	 benchmarks/exact-py-small benchmarks/exact-sparsehash-small \
+	 benchmarks/exact-py-medium benchmarks/exact-sparsehash-medium \
+	 benchmarks/hll-small benchmarks/hll-medium
 
 install-dependencies:
 	pip install -r requirements.txt
+
+#############################################################################
 
 benchmarks/just-io: \
 	$(foreach r,$(REPLICATES),\
@@ -20,6 +33,8 @@ benchmarks/unique-kmers: \
             $(subst REP,$r,\
 				$(subst THREAD,$t,benchmarks/unique-kmers_rREPtTHREAD))))
 
+#############################################################################
+
 benchmarks/streaming_just-io: \
 	$(foreach r,$(REPLICATES),\
         $(subst REP,$r,benchmarks/streaming_just-io_rREP))
@@ -30,21 +45,41 @@ benchmarks/streaming_unique-kmers: \
             $(subst REP,$r,\
 			    $(subst THREAD,$t,benchmarks/streaming_unique-kmers_rREPtTHREAD))))
 
-benchmarks/exact-py: \
-	$(foreach r,$(REPLICATES),\
-        $(subst REP,$r,benchmarks/exact-py_rREP))
+#############################################################################
 
-benchmarks/exact-sparsehash: \
+benchmarks/exact-py-small: \
 	$(foreach r,$(REPLICATES),\
-        $(subst REP,$r,benchmarks/exact-sparsehash_rREP))
+        $(subst REP,$r,benchmarks/exact-py-small_rREP))
+
+benchmarks/exact-sparsehash-small: \
+	$(foreach r,$(REPLICATES),\
+        $(subst REP,$r,benchmarks/exact-sparsehash-small_rREP))
+
+benchmarks/hll-small: \
+	$(foreach r,$(REPLICATES),\
+        $(subst REP,$r,benchmarks/hll-small_rREP))
 
 #############################################################################
 
-benchmarks/just-io_%: scripts/just-io.py
+benchmarks/exact-py-medium: \
+	$(foreach r,$(REPLICATES),\
+        $(subst REP,$r,benchmarks/exact-py-medium_rREP))
+
+benchmarks/exact-sparsehash-medium: \
+	$(foreach r,$(REPLICATES),\
+        $(subst REP,$r,benchmarks/exact-sparsehash-medium_rREP))
+
+benchmarks/hll-medium: \
+	$(foreach r,$(REPLICATES),\
+        $(subst REP,$r,benchmarks/hll-medium_rREP))
+
+#############################################################################
+
+benchmarks/just-io_%: scripts/just-io.py ${INPUT}
 	mkdir -p ${@D}
 	${TIMING_CMD} --output $@ $< ${INPUT}
 
-benchmarks/unique-kmers_%:
+benchmarks/unique-kmers_%: ${INPUT}
 	mkdir -p ${@D}
 	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=$(shell echo $* | cut -d 't' -f2) \
        unique-kmers.py -e 0.01 -k 32 ${INPUT}
@@ -63,13 +98,33 @@ benchmarks/streaming_just-io_%:
 
 #############################################################################
 
-benchmarks/exact-py_%: scripts/unique_kmers_exact.py
+benchmarks/exact-py-medium_%: scripts/unique_kmers_exact.py $(INPUT_MEDIUM)
 	mkdir -p ${@D}
-	${TIMING_CMD} --output $@ $< ${INPUT} 32
+	${TIMING_CMD} --output $@ $< ${INPUT_MEDIUM} 32
 
-benchmarks/exact-sparsehash_%: src/unique_kmers_sparsehash
+benchmarks/exact-sparsehash-medium_%: src/unique_kmers_sparsehash $(INPUT_MEDIUM)
 	mkdir -p ${@D}
-	${TIMING_CMD} --output $@ $< ${INPUT} 32
+	${TIMING_CMD} --output $@ $< ${INPUT_MEDIUM} 32
+
+benchmarks/hll-medium_%: $(INPUT_MEDIUM)
+	mkdir -p ${@D}
+	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=32 \
+	    unique-kmers.py -e 0.01 -k 32 $<
+
+#############################################################################
+
+benchmarks/exact-py-small_%: scripts/unique_kmers_exact.py $(INPUT_SMALL)
+	mkdir -p ${@D}
+	${TIMING_CMD} --output $@ $< ${INPUT_SMALL} 32
+
+benchmarks/exact-sparsehash-small_%: src/unique_kmers_sparsehash $(INPUT_SMALL)
+	mkdir -p ${@D}
+	${TIMING_CMD} --output $@ $< ${INPUT_SMALL} 32
+
+benchmarks/hll-small_%: $(INPUT_SMALL)
+	mkdir -p ${@D}
+	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=32 \
+	    unique-kmers.py -e 0.01 -k 32 $<
 
 #############################################################################
 
@@ -77,6 +132,16 @@ src/unique_kmers_sparsehash: src/unique_kmers.cc
 	cd src && \
 	  $(MAKE) unique_kmers_sparsehash
 
-inputs/SRR1304364_1.fastq:
+#############################################################################
+
+$(INPUT):
 	mkdir -p $(@D)
 	curl ${INPUT_URL} | gunzip -c > $@
+
+$(INPUT_SMALL):
+	mkdir -p $(@D)
+	curl ${INPUT_SMALL_URL} | gunzip -c > $@
+
+$(INPUT_MEDIUM):
+	mkdir -p $(@D)
+	curl ${INPUT_SMALL_URL} | gunzip -c > $@
