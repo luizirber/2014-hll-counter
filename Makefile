@@ -8,7 +8,7 @@ INPUT_SMALL=inputs/SRR797943.fastq
 INPUT_SMALL_URL=ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR797/SRR797943/SRR797943.fastq.gz
 
 
-THREADS=32 16 08 04 02 01
+THREADS=16 08 04 02 01
 REPLICATES=$(shell seq -w 01 10)
 TIMING_CMD=/usr/bin/time -v
 
@@ -108,7 +108,7 @@ benchmarks/exact-sparsehash-medium_%: src/unique_kmers_sparsehash $(INPUT_MEDIUM
 
 benchmarks/hll-medium_%: $(INPUT_MEDIUM)
 	mkdir -p ${@D}
-	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=32 \
+	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=16 \
 	    unique-kmers.py -e 0.01 -k 32 $<
 
 #############################################################################
@@ -123,7 +123,7 @@ benchmarks/exact-sparsehash-small_%: src/unique_kmers_sparsehash $(INPUT_SMALL)
 
 benchmarks/hll-small_%: $(INPUT_SMALL)
 	mkdir -p ${@D}
-	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=32 \
+	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=16 \
 	    unique-kmers.py -e 0.01 -k 32 $<
 
 #############################################################################
