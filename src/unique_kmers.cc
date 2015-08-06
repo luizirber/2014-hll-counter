@@ -78,6 +78,7 @@ int main(int argc, char** argv) {
   while (!parser->is_complete()) {
     try {
       read = parser->get_next_read();
+      kmer = "";
 
       for(auto & c : read.sequence) {
           if (c == 'N') c = 'A';
