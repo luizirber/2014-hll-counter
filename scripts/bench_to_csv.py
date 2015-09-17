@@ -12,7 +12,7 @@ def parse_replicate(filename):
             key, value = line.strip().split(': ')
 
             value = value.strip('%')
-            if ':' in value:
+            if "Elapsed (wall clock)" in key:
                 walltime = value.split(':')
                 assert len(walltime) <= 3
                 hours = 0.
