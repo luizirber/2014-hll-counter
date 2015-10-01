@@ -27,6 +27,12 @@ benchmarks/just-io: \
 	$(foreach r,$(REPLICATES),\
         $(subst REP,$r,benchmarks/just-io_rREP))
 
+benchmarks/kmerstream: \
+	$(foreach r,$(REPLICATES),\
+        $(foreach t,$(THREADS),\
+            $(subst REP,$r,\
+				$(subst THREAD,$t,benchmarks/kmerstream_rREPtTHREAD))))
+
 benchmarks/unique-kmers: \
 	$(foreach r,$(REPLICATES),\
         $(foreach t,$(THREADS),\
@@ -83,6 +89,12 @@ benchmarks/unique-kmers_%: ${INPUT}
 	mkdir -p ${@D}
 	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=$(shell echo $* | cut -d 't' -f2) \
        unique-kmers.py -e 0.01 -k 32 ${INPUT}
+
+benchmarks/kmerstream_%: ${INPUT}
+	mkdir -p ${@D}
+	mkdir -p out
+	${TIMING_CMD} --output $@ -- KmerStream -e 0.01 -k 32 -s 1 \
+		-t $(shell echo $* | cut -d 't' -f2) -o out/${@F} ${INPUT}
 
 #############################################################################
 

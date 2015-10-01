@@ -2,6 +2,7 @@
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 
 from matplotlib.ticker import FormatStrFormatter
 
@@ -10,7 +11,7 @@ THREADS = [1, 2, 4, 8, 16]
 REPLICATES = range(1, 11)
 
 
-def prepare_plot_data(summary_io, summary_hll, value):
+def prepare_plot_data(summary_io, summary_hll, summary_kmerstream, value):
     constant_line = None
     for t in THREADS:
         df = summary_io[['replicate', value, 'threads']].copy()
@@ -21,10 +22,11 @@ def prepare_plot_data(summary_io, summary_hll, value):
         else:
             constant_line = constant_line.append(df, ignore_index=True)
 
-    plot_hll = summary_hll[['replicate', value, 'threads']].copy()
-    plot_hll['condition'] = 'Parallel HLL'
+    summary_hll['condition'] = 'Parallel HLL'
+    summary_kmerstream['condition'] = 'KmerStream'
 
-    return plot_hll.append(constant_line, ignore_index=True)
+    return pd.concat([summary_hll, summary_kmerstream, constant_line],
+                     ignore_index=True)
 
 
 def tsplot(plot_data, value, unit_traces=False):
