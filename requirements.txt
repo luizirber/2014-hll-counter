@@ -4,7 +4,7 @@ mock==1.3.0
 pandas==0.17.1
 seaborn==0.6.0
 yep==0.4
-hyperloglog=0.0.10
+hyperloglog==0.0.10
 
 ipython[all]==4.0.0
 jupyter==1.0.0

@@ -8,7 +8,7 @@ INPUT_SMALL=inputs/SRR797943.fastq
 INPUT_SMALL_URL=ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR797/SRR797943/SRR797943.fastq.gz
 
 
-THREADS=16 08 04 02 01
+THREADS=32 16 08 04 02 01
 REPLICATES=$(shell seq -w 01 10)
 TIMING_CMD=/usr/bin/time -v
 
@@ -16,7 +16,8 @@ all: benchmarks/unique-kmers benchmarks/just-io \
 	 benchmarks/streaming_unique-kmers benchmarks/streaming_just-io \
 	 benchmarks/exact-py-small benchmarks/exact-sparsehash-small \
 	 benchmarks/exact-py-medium benchmarks/exact-sparsehash-medium \
-	 benchmarks/hll-small benchmarks/hll-medium
+	 benchmarks/hll-small benchmarks/hll-medium \
+	 benchmarks/kmerstrem
 
 install-dependencies:
 	pip install -r requirements.txt
