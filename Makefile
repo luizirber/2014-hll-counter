@@ -12,7 +12,8 @@ THREADS=32 16 08 04 02 01
 REPLICATES=$(shell seq -w 01 10)
 TIMING_CMD=/usr/bin/time -v
 
-all: benchmarks/unique-kmers benchmarks/just-io \
+all: benchmarks/unique-kmers-kseq benchmarks/unique-kmers-seqan \
+	 benchmarks/just-io-kseq benchmarks/just-io-seqan \
 	 benchmarks/streaming_unique-kmers benchmarks/streaming_just-io \
 	 benchmarks/exact-py-small benchmarks/exact-sparsehash-small \
 	 benchmarks/exact-py-medium benchmarks/exact-sparsehash-medium \
@@ -24,9 +25,13 @@ install-dependencies:
 
 #############################################################################
 
-benchmarks/just-io: \
+benchmarks/just-io-kseq: \
 	$(foreach r,$(REPLICATES),\
-        $(subst REP,$r,benchmarks/just-io_rREP))
+        $(subst REP,$r,benchmarks/just-io-kseq_rREP))
+
+benchmarks/just-io-seqan: \
+	$(foreach r,$(REPLICATES),\
+        $(subst REP,$r,benchmarks/just-io-seqan_rREP))
 
 benchmarks/kmerstream: \
 	$(foreach r,$(REPLICATES),\
@@ -82,14 +87,23 @@ benchmarks/hll-medium: \
 
 #############################################################################
 
-benchmarks/just-io_%: scripts/just-io.py ${INPUT}
+benchmarks/just-io-kseq_%: scripts/just-io.py ${INPUT}
 	mkdir -p ${@D}
-	${TIMING_CMD} --output $@ $< ${INPUT}
+	${TIMING_CMD} --output $@ $< ${INPUT} kseq
 
-benchmarks/unique-kmers_%: ${INPUT}
+benchmarks/just-io-seqan_%: scripts/just-io.py ${INPUT}
+	mkdir -p ${@D}
+	${TIMING_CMD} --output $@ $< ${INPUT} seqan
+
+benchmarks/unique-kmers-seqan_%: ${INPUT}
 	mkdir -p ${@D}
 	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=$(shell echo $* | cut -d 't' -f2) \
-       unique-kmers.py -e 0.01 -k 32 ${INPUT}
+       unique-kmers.py -r seqan -e 0.01 -k 32 ${INPUT}
+
+benchmarks/unique-kmers-kseq_%: ${INPUT}
+	mkdir -p ${@D}
+	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=$(shell echo $* | cut -d 't' -f2) \
+       unique-kmers.py -r kseq -e 0.01 -k 32 ${INPUT}
 
 benchmarks/kmerstream_%: ${INPUT}
 	mkdir -p ${@D}
