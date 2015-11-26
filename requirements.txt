@@ -1,9 +1,9 @@
--e git+https://github.com/ged-lab/khmer.git#egg=khmer
+-e git+https://github.com/dib-lab/khmer.git@feature/kseq_parser#egg=khmer
 
 mock==1.3.0
 pandas==0.17.1
 seaborn==0.6.0
-yep==0.4
+#yep==0.4
 hyperloglog==0.0.10
 
 ipython[all]==4.0.0

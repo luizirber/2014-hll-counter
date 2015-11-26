@@ -1,10 +1,10 @@
 #include <iostream>
 #include <google/sparse_hash_set>
 
-#include "khmer.hh"
-#include "kmer_hash.hh"
-#include "read_parsers.hh"
-#include "MurmurHash3.h"
+#include "oxli/khmer.hh"
+#include "oxli/kmer_hash.hh"
+#include "oxli/read_parsers.hh"
+#include "oxli/MurmurHash3.h"
 
 using google::sparse_hash_set;      // namespace where class lives by default
 
