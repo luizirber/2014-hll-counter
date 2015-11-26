@@ -12,13 +12,17 @@ THREADS=32 16 08 04 02 01
 REPLICATES=$(shell seq -w 01 10)
 TIMING_CMD=/usr/bin/time -v
 
-all: benchmarks/unique-kmers-kseq benchmarks/unique-kmers-seqan \
+all: speedup streaming exact
+
+speedup: benchmarks/unique-kmers-kseq benchmarks/unique-kmers-seqan \
 	 benchmarks/just-io-kseq benchmarks/just-io-seqan \
-	 benchmarks/streaming_unique-kmers benchmarks/streaming_just-io \
-	 benchmarks/exact-py-small benchmarks/exact-sparsehash-small \
+	 benchmarks/kmerstream
+
+streaming: benchmarks/streaming_unique-kmers benchmarks/streaming_just-io
+
+exact: benchmarks/exact-py-small benchmarks/exact-sparsehash-small \
 	 benchmarks/exact-py-medium benchmarks/exact-sparsehash-medium \
-	 benchmarks/hll-small benchmarks/hll-medium \
-	 benchmarks/kmerstrem
+	 benchmarks/hll-small benchmarks/hll-medium
 
 install-dependencies:
 	pip install -r requirements.txt
