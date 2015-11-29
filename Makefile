@@ -24,6 +24,8 @@ exact: benchmarks/exact-py-small benchmarks/exact-sparsehash-small \
 	 benchmarks/exact-py-medium benchmarks/exact-sparsehash-medium \
 	 benchmarks/hll-small benchmarks/hll-medium
 
+inputs: $(INPUT) $(INPUT_MEDIUM) $(INPUT_SMALL)
+
 install-dependencies:
 	pip install -r requirements.txt
 
@@ -118,7 +120,7 @@ benchmarks/unique-kmers-kseq_%: ${INPUT}
 benchmarks/kmerstream_%: ${INPUT}
 	mkdir -p ${@D}
 	mkdir -p out
-	${TIMING_CMD} --output $@ -- KmerStream -e 0.01 -k 32 -s 1 \
+	${TIMING_CMD} --output $@ -- src/KmerStream -e 0.01 -k 32 -s 1 \
 		-t $(shell echo $* | cut -d 't' -f2) -o out/${@F} ${INPUT}
 
 #############################################################################
@@ -165,9 +167,11 @@ benchmarks/hll-small_%: $(INPUT_SMALL)
 
 #############################################################################
 
-src/unique_kmers_sparsehash: src/unique_kmers.cc
-	cd src && \
-	  $(MAKE) unique_kmers_sparsehash
+src/unique_kmers_sparsehash:
+	cd src && $(MAKE) unique_kmers_sparsehash
+
+src/KmerStream:
+	cd src && $(MAKE) KmerStream
 
 #############################################################################
 
