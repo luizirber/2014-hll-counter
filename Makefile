@@ -43,11 +43,17 @@ benchmarks/kmerstream: \
             $(subst REP,$r,\
 				$(subst THREAD,$t,benchmarks/kmerstream_rREPtTHREAD))))
 
-benchmarks/unique-kmers: \
+benchmarks/unique-kmers-seqan: \
 	$(foreach r,$(REPLICATES),\
         $(foreach t,$(THREADS),\
             $(subst REP,$r,\
-				$(subst THREAD,$t,benchmarks/unique-kmers_rREPtTHREAD))))
+				$(subst THREAD,$t,benchmarks/unique-kmers-seqan_rREPtTHREAD))))
+
+benchmarks/unique-kmers-kseq: \
+	$(foreach r,$(REPLICATES),\
+        $(foreach t,$(THREADS),\
+            $(subst REP,$r,\
+				$(subst THREAD,$t,benchmarks/unique-kmers-kseq_rREPtTHREAD))))
 
 #############################################################################
 
