@@ -117,10 +117,11 @@ benchmarks/unique-kmers-kseq_%: ${INPUT}
 	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=$(shell echo $* | cut -d 't' -f2) \
        unique-kmers.py -r kseq -e 0.01 -k 32 ${INPUT}
 
-benchmarks/kmerstream_%: ${INPUT}
+benchmarks/kmerstream_%: ${INPUT} src/KmerStream
 	mkdir -p ${@D}
 	mkdir -p out
-	${TIMING_CMD} --output $@ -- src/KmerStream -e 0.01 -k 32 -s 1 \
+	${TIMING_CMD} --output $@ -- env OMP_NUM_THREADS=$(shell echo $* | cut -d 't' -f2) \
+	    src/KmerStream -e 0.01 -k 32 -s 1 \
 		-t $(shell echo $* | cut -d 't' -f2) -o out/${@F} ${INPUT}
 
 #############################################################################
